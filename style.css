@@ -1,0 +1,445 @@
+/* The controls are glass tinted with the canvas background (--bg, set from the
+   sketch). Their ink is dark on a light background and flips on a dark one. */
+:root {
+  --bg: #ffffff;
+  --glass: 40%; /* how much of the background the glass keeps; the rest shows through */
+  --ink: #111111;
+  --ink-muted: rgba(17, 17, 17, 0.5);
+  --ink-faint: rgba(17, 17, 17, 0.16);
+  --hair: rgba(17, 17, 17, 0.09);
+  --fill: rgba(17, 17, 17, 0.05);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23111'/%3E%3C/svg%3E");
+  --radius: 14px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body[data-tone="dark"] {
+  --ink: #f4f4f2;
+  --ink-muted: rgba(244, 244, 242, 0.55);
+  --ink-faint: rgba(244, 244, 242, 0.2);
+  --hair: rgba(244, 244, 242, 0.11);
+  --fill: rgba(244, 244, 242, 0.07);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23f4f4f2'/%3E%3C/svg%3E");
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+  font: 11px/1.3 "Inter", system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+canvas { display: block; cursor: crosshair; touch-action: none; }
+
+/* Mirrors the text so a touch screen can bring up its keyboard. 16px stops
+   iOS zooming in when it's focused. */
+#type-input {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  resize: none;
+  font-size: 16px;
+  pointer-events: none;
+}
+body[data-tool="add"] canvas {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='11' cy='11' r='8' fill='white' stroke='black'/%3E%3Cpath d='M11 7v8M7 11h8' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E") 11 11, copy;
+}
+body[data-tool="remove"] canvas {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='11' cy='11' r='8' fill='white' stroke='black'/%3E%3Cpath d='M7 11h8' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E") 11 11, pointer;
+}
+
+.bar, #hint, #tool-hint {
+  background: color-mix(in srgb, var(--bg) var(--glass), transparent);
+  border: 1px solid var(--hair);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+}
+
+/* ---------- hints + handle ---------- */
+
+#hint, #tool-hint {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 400ms var(--ease);
+}
+#hint { bottom: 28px; }
+#hint.gone { opacity: 0; }
+#tool-hint { top: 16px; color: var(--ink); opacity: 0; }
+#tool-hint.on { opacity: 1; }
+
+/* The visible bar is 40 × 4; the button around it is big enough to tap. */
+#handle {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  width: 80px;
+  height: 28px;
+  margin-left: -40px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  mix-blend-mode: difference;
+  opacity: 0.6;
+  transition: opacity 200ms var(--ease);
+}
+#handle::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: #888;
+}
+#handle:hover { background: transparent; opacity: 0.9; }
+body.dock-open #handle { opacity: 0; pointer-events: none; }
+
+/* ---------- dock ---------- */
+
+#dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px 16px;
+  transform: translateY(calc(100% + 8px));
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 260ms var(--ease), opacity 200ms var(--ease);
+}
+body.dock-open #dock {
+  transform: none;
+  opacity: 1;
+}
+body.dock-open #dock .bar { pointer-events: auto; }
+
+.bar {
+  display: flex;
+  align-items: flex-start;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 12px 0 14px;
+  border-radius: var(--radius);
+}
+
+.group {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px;
+}
+.group + .group { border-left: 1px solid var(--hair); }
+
+.group h2 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+.group h2 output { font-variant-numeric: tabular-nums; }
+
+/* A label and its value on one line, the slider under them. */
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  width: 128px;
+}
+.row > span, .row > label { color: var(--ink); }
+.row output {
+  grid-row: 1;
+  grid-column: 2;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.row input[type="range"] { grid-column: 1 / -1; }
+
+.row.glob { grid-template-columns: 20px 1fr auto; }
+.row.glob input[type="color"] { grid-row: 1 / span 2; }
+.row.glob output { grid-column: 3; }
+.row.glob input[type="range"] { grid-column: 2 / -1; }
+
+/* ---------- inputs ---------- */
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 128px;
+  background: var(--fill) var(--chevron) no-repeat right 8px center;
+  color: var(--ink);
+  border: 0;
+  border-radius: 6px;
+  padding: 5px 22px 5px 8px;
+  font: inherit;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 14px;
+  background: transparent;
+  margin: 0;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--ink-faint);
+  border-radius: 1px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: transform 120ms var(--ease);
+}
+input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.3); }
+input[type="range"]::-moz-range-track { height: 2px; background: var(--ink-faint); }
+input[type="range"]::-moz-range-thumb { width: 10px; height: 10px; border: 0; border-radius: 50%; background: var(--ink); }
+
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 24px;
+  height: 14px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--ink-faint);
+  position: relative;
+  cursor: pointer;
+  transition: background 160ms var(--ease);
+}
+input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: transform 160ms var(--ease);
+}
+input[type="checkbox"]:checked { background: var(--ink); }
+input[type="checkbox"]:checked::after { transform: translateX(10px); background: var(--bg); }
+
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--ink-faint);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
+input[type="color"]::-moz-color-swatch { border: 0; border-radius: 50%; }
+
+button {
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 120ms var(--ease), box-shadow 120ms var(--ease);
+}
+button:hover { background: var(--fill); }
+button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 1px solid var(--ink-muted);
+  outline-offset: 2px;
+}
+
+button svg {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- presets ---------- */
+
+.presets {
+  display: grid;
+  grid-template-columns: repeat(3, 26px);
+  gap: 6px;
+}
+.preset {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px var(--hair);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.preset:hover { box-shadow: inset 0 0 0 1px var(--ink-faint); }
+.preset[aria-pressed="true"] { box-shadow: 0 0 0 1.5px var(--ink); }
+.preset i {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+/* ---------- color ---------- */
+
+.swatch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+/* ---------- motion ---------- */
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  width: 128px;
+  padding: 2px;
+  background: var(--fill);
+  border-radius: 7px;
+}
+.segmented button {
+  padding: 3px 0;
+  border-radius: 5px;
+  color: var(--ink-muted);
+}
+.segmented button:hover { background: transparent; color: var(--ink); }
+.segmented button[aria-checked="true"] {
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--hair);
+}
+
+/* ---------- lines ---------- */
+
+.lines {
+  display: flex;
+  gap: 8px;
+}
+.pivot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 20px);
+  gap: 4px;
+}
+.pivot-grid button {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  background: var(--fill);
+}
+.pivot-grid button::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+.pivot-grid button.taken::after { width: 6px; height: 6px; background: var(--ink); }
+.pivot-grid button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--ink); }
+
+.tools {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tools button {
+  width: 28px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: var(--fill);
+}
+.tools button:hover { background: var(--ink-faint); }
+.tools button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+/* ---------- export ---------- */
+
+.export {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: -8px;
+}
+.export button { text-align: left; }
+.export button.busy { color: var(--ink-muted); }
+
+/* ---------- small screens ---------- */
+/* The bar becomes a sheet: groups in a grid, scrolling if it runs tall. A tap
+   on the canvas puts it away. */
+
+@media (max-width: 860px) {
+  #dock { padding: 0 8px 8px; }
+  .bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    width: 100%;
+    max-height: 46vh;
+    overflow: auto;
+    padding: 4px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .group { padding: 12px 14px; }
+  .group + .group { border-left: 0; }
+  .row, select, .segmented { width: 100%; }
+  #hint { bottom: 32px; white-space: normal; text-align: center; width: max-content; max-width: calc(100vw - 32px); }
+}
+
+/* Fingers need bigger targets. */
+@media (pointer: coarse) {
+  input[type="range"] { height: 24px; }
+  input[type="range"]::-webkit-slider-thumb { width: 16px; height: 16px; margin-top: -7px; }
+  .pivot-grid { grid-template-columns: repeat(3, 28px); }
+  .pivot-grid button { width: 28px; height: 28px; }
+  .tools button { width: 36px; height: 28px; }
+  .presets { grid-template-columns: repeat(3, 32px); }
+  .preset { width: 32px; height: 32px; }
+  .segmented button { padding: 7px 0; }
+  .export button { padding: 7px 8px; }
+}

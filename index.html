@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sonar text editor</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/p5@2.3.3/lib/p5.min.js"></script>
+</head>
+<body>
+  <div id="hint">Type to edit · Tab or bottom edge for controls</div>
+  <div id="tool-hint" role="status"></div>
+  <button type="button" id="handle" aria-label="Controls"></button>
+  <textarea id="type-input" aria-label="Text" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+
+  <footer id="dock" aria-label="Controls">
+    <div class="bar">
+      <section class="group">
+        <h2>Presets</h2>
+        <div class="presets" id="presets"></div>
+      </section>
+
+      <section class="group">
+        <h2>Type</h2>
+        <select id="font" aria-label="Font"></select>
+        <label class="row">
+          <span>Size</span>
+          <input id="size" type="range" min="24" max="480" step="1">
+          <output for="size"></output>
+        </label>
+        <label class="row">
+          <span>Spacing</span>
+          <input id="tracking" type="range" min="-20" max="60" step="1">
+          <output for="tracking"></output>
+        </label>
+        <label class="row">
+          <span>Leading</span>
+          <input id="leading" type="range" min="70" max="200" step="1">
+          <output for="leading"></output>
+        </label>
+        <input id="font-file" type="file" accept=".ttf,.otf" hidden>
+      </section>
+
+      <section class="group">
+        <h2>Color</h2>
+        <label class="swatch"><input id="bg" type="color"><span>Background</span></label>
+        <label class="swatch"><input id="fg" type="color"><span>Text</span></label>
+        <label class="swatch"><input id="line" type="color"><span>Line</span></label>
+        <div class="row glob">
+          <input id="glob" type="color" aria-label="Glob color" title="Glob color: goo pulled far out of a letter">
+          <label for="glob-amount">Glob</label>
+          <output for="glob-amount"></output>
+          <input id="glob-amount" type="range" min="0" max="100" step="1">
+        </div>
+      </section>
+
+      <section class="group">
+        <h2>Motion</h2>
+        <div class="segmented" id="shape" role="radiogroup" aria-label="Line shape">
+          <button type="button" data-value="line">Line</button>
+          <button type="button" data-value="cross">Cross</button>
+          <button type="button" data-value="pulse">Pulse</button>
+        </div>
+        <label class="row">
+          <span>Speed</span>
+          <input id="speed" type="range" min="0" max="180" step="1">
+          <output for="speed"></output>
+        </label>
+        <label class="row">
+          <span>Morph</span>
+          <input id="morph" type="range" min="-100" max="100" step="1">
+          <output for="morph"></output>
+        </label>
+        <label class="row">
+          <span>Reach</span>
+          <input id="reach" type="range" min="1" max="60" step="1">
+          <output for="reach"></output>
+        </label>
+        <label class="row toggle">
+          <span>Hover</span>
+          <input id="hover" type="checkbox">
+        </label>
+      </section>
+
+      <section class="group">
+        <h2>Lines <output id="line-count"></output></h2>
+        <div class="lines">
+          <div class="pivot-grid" id="pivot"></div>
+          <div class="tools">
+            <button type="button" id="tool-add" aria-pressed="false" aria-label="Add lines" title="Add lines: click to place">
+              <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" /></svg>
+            </button>
+            <button type="button" id="tool-remove" aria-pressed="false" aria-label="Remove lines" title="Remove lines: click a centre">
+              <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M1.5 6h9" /></svg>
+            </button>
+            <button type="button" id="reset-lines" aria-label="Reset lines" title="Reset to one centred line">
+              <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M9.76 5.13A4 4 0 1 1 6 2.5M4.6 1.1L6 2.5 4.6 3.9" /></svg>
+            </button>
+          </div>
+        </div>
+        <label class="row toggle">
+          <span>Show</span>
+          <input id="show-line" type="checkbox">
+        </label>
+      </section>
+
+      <section class="group">
+        <h2>Export</h2>
+        <div class="export">
+          <button type="button" id="export-png">PNG</button>
+          <button type="button" id="export-svg">SVG</button>
+          <button type="button" id="export-video">Video</button>
+        </div>
+      </section>
+    </div>
+  </footer>
+
+  <script src="sketch.js"></script>
+</body>
+</html>
