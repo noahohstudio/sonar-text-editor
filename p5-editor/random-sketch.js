@@ -1431,11 +1431,14 @@ function buildDock() {
 }
 
 
-// Sonar text editor, random: no controls. Every letter added or deleted
-// re-rolls the whole look: palette, font, line shape and motion, glob, and how
-// many lines there are and where. The roll is seeded by the text itself, so
-// deleting a letter brings back the look from before it, and the same words
+// Sonar text editor, random: no controls. It opens plain, black on white with
+// one line. Every letter added or deleted then re-rolls the whole look:
+// palette, font, line shape and motion, glob, and how many lines there are and
+// where. The roll is seeded by the text itself, so deleting a letter brings
+// back the look from before it (all the way back to plain), and the same words
 // always look the same. Runs on top of sketch.js.
+
+const startText = state.text;
 
 // [background, text, glob]
 const PALETTES = [
@@ -1466,8 +1469,18 @@ function seeded(text) {
   };
 }
 
+// The tool's own defaults (the Ink preset): black on white, one line through
+// the centre.
+function plain() {
+  const p = PRESETS[0];
+  for (const key of ['font', 'bg', 'fg', 'line', 'glob', 'globAmount', 'shape', 'speed', 'morph', 'reach']) state[key] = p[key];
+  state.pivots = p.pivots.map(([x, y, angle]) => ({ x, y, angle }));
+  applyColors();
+}
+
 // Leans toward the subtle end: thin reach, mostly Out, few lines.
 function roll(text) {
+  if (text === startText) return plain();
   const r = seeded(text);
   const pick = (list) => list[Math.floor(r() * list.length)];
   const between = (lo, hi) => lo + (hi - lo) * r();
@@ -1498,13 +1511,14 @@ function roll(text) {
 }
 
 // Fetches every font once, then rolls again so the font matches the text's
-// roll from then on.
+// roll from then on. The plain start doesn't need it.
 async function loadAllFonts() {
   await Promise.all(
     FONTS.map(async (f, i) => {
       if (!fonts[i]) fonts[i] = await loadFont(f.url, f.name);
     }),
   );
+  if (state.text === startText) return;
   roll(state.text);
   buildLayout();
 }
@@ -1519,6 +1533,4 @@ const startUp = setup;
 setup = async () => {
   await startUp();
   loadAllFonts();
-  roll(state.text);
-  buildLayout();
 };

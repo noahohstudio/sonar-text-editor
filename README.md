@@ -4,7 +4,7 @@ A generative type tool by Noah Oh, built with [p5.js](https://p5js.org) 2.3.3.
 
 **Try it:** https://noahohstudio.github.io/sonar-text-editor/
 
-**Random version:** https://noahohstudio.github.io/sonar-text-editor/random/ has no controls at all. Every letter you add or delete re-rolls the whole look: palette, font, line shape and motion, glob, and the lines. The roll is seeded by the text, so deleting a letter brings back the look from before it. ⌘S (Ctrl+S) saves a PNG.
+**Random version:** https://noahohstudio.github.io/sonar-text-editor/random/ has no controls at all. It opens plain, black on white with one line, and every letter you add or delete re-rolls the whole look: palette, font, line shape and motion, glob, and the lines. The roll is seeded by the text, so deleting a letter brings back the look from before it, all the way back to plain. ⌘S (Ctrl+S) saves a PNG.
 
 Lines spin around points you place. Wherever one crosses a letter, the outline pinches along it like goo. Letters nothing is touching stay exactly the font.
 
