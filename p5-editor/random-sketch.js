@@ -1439,6 +1439,9 @@ function buildDock() {
 // always look the same. Runs on top of sketch.js.
 
 const startText = state.text;
+const SPEEDS = [20, 35]; // °/s; always a little slower than the tool's 45
+const PLAIN_SPEED = 30;
+state.speed = PLAIN_SPEED; // the page opens plain, already at this speed
 
 // [background, text, glob]
 const PALETTES = [
@@ -1470,15 +1473,17 @@ function seeded(text) {
 }
 
 // The tool's own defaults (the Ink preset): black on white, one line through
-// the centre.
+// the centre. Only the speed differs, to match the rolls.
 function plain() {
   const p = PRESETS[0];
-  for (const key of ['font', 'bg', 'fg', 'line', 'glob', 'globAmount', 'shape', 'speed', 'morph', 'reach']) state[key] = p[key];
+  for (const key of ['font', 'bg', 'fg', 'line', 'glob', 'globAmount', 'shape', 'morph', 'reach']) state[key] = p[key];
+  state.speed = PLAIN_SPEED;
   state.pivots = p.pivots.map(([x, y, angle]) => ({ x, y, angle }));
   applyColors();
 }
 
-// Leans toward the subtle end: thin reach, mostly Out, few lines.
+// Half the time rings (Pulse), half straight lines (Line or Cross, evenly).
+// Leans toward the subtle end otherwise: thin reach, mostly Out, few lines.
 function roll(text) {
   if (text === startText) return plain();
   const r = seeded(text);
@@ -1492,8 +1497,8 @@ function roll(text) {
     glob,
     line: r() < 0.25 ? glob : null,
     globAmount: r() < 0.7 ? Math.round(between(35, 85)) : 0,
-    shape: pick(['line', 'line', 'cross', 'pulse']),
-    speed: Math.round(between(15, 90)),
+    shape: r() < 0.5 ? 'pulse' : pick(['line', 'cross']),
+    speed: Math.round(between(...SPEEDS)),
     morph: r() < 0.8 ? Math.round(between(35, 85)) : -Math.round(between(30, 70)),
     reach: Math.round(2 + 7 * r() * r()),
   });
